@@ -4,83 +4,376 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Versão 5</title>
+  <meta name="description" content="Indicadores anuais de criminalidade do estado de São Paulo, consultados na API pública da Secretaria da Segurança Pública.">
+  <title>Criminalidade em São Paulo | Painel de dados</title>
   <style>
+    :root {
+      color-scheme: light;
+      font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+      color: #172820;
+      background: #f3f5f0;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
-      font-family: system-ui, "Segoe UI", Roboto, sans-serif;
-      background: #7b2cbf;
-      padding: 1rem;
     }
 
-    .cartao {
-      background: #fff;
-      border-radius: 20px;
-      padding: 2.5rem;
-      max-width: 520px;
-      width: 100%;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, .25);
-      text-align: center;
-      color: #1d1d1f;
+    header {
+      padding: 2.25rem max(1.25rem, calc((100% - 1120px) / 2)) 2rem;
+      color: #f7f8f3;
+      background: #183b2d;
     }
 
-    .emoji {
-      font-size: 4rem;
+    .sobretitulo {
+      margin: 0 0 .75rem;
+      color: #c9d8a5;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
     }
+
+    h1, h2, p { margin-top: 0; }
 
     h1 {
-      margin: .5rem 0;
-      color: #7b2cbf;
+      max-width: 720px;
+      margin-bottom: .65rem;
+      font-size: clamp(2rem, 5vw, 3.25rem);
+      line-height: 1.05;
+      font-weight: 650;
+      letter-spacing: 0;
     }
 
-    .versao {
-      margin-top: 1.5rem;
-      padding: 1rem;
-      border-radius: 12px;
-      background: #f2f2f7;
+    header p:last-child {
+      max-width: 620px;
+      margin-bottom: 0;
+      color: #d7e2da;
+      line-height: 1.6;
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+
+    .linha-status {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem 1rem;
+      min-height: 2.5rem;
+      margin-bottom: 1.25rem;
+      color: #4c5a51;
+      font-size: .9rem;
+    }
+
+    #status {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+    }
+
+    #status::before {
+      width: .55rem;
+      height: .55rem;
+      border-radius: 50%;
+      background: #c88b22;
+      content: "";
+    }
+
+    #status[data-state="success"]::before { background: #28824f; }
+    #status[data-state="error"]::before { background: #b63a32; }
+
+    #retry {
+      border: 1px solid #aeb9af;
+      border-radius: 4px;
+      padding: .5rem .75rem;
+      color: #183b2d;
+      background: transparent;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    #retry:hover { background: #e7ece5; }
+
+    .secao-titulo {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: .5rem 1rem;
+      margin: 2rem 0 .9rem;
+    }
+
+    .secao-titulo h2 {
+      margin-bottom: 0;
+      font-size: 1.15rem;
+    }
+
+    .secao-titulo p {
+      margin: 0;
+      color: #68746b;
+      font-size: .85rem;
+    }
+
+    .indicadores {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .75rem;
+    }
+
+    .indicador {
+      min-width: 0;
+      padding: 1.15rem;
+      border-top: 3px solid #81934d;
+      background: #fff;
+    }
+
+    .indicador:nth-child(2) { border-color: #b67a31; }
+    .indicador:nth-child(3) { border-color: #a7443e; }
+    .indicador:nth-child(4) { border-color: #397d80; }
+
+    .indicador h3 {
+      min-height: 2.5em;
+      margin: 0 0 .7rem;
+      color: #4c5a51;
+      font-size: .9rem;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .valor {
+      display: block;
+      font-size: clamp(1.7rem, 3vw, 2.25rem);
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .variacao {
+      display: block;
+      margin-top: .55rem;
+      color: #68746b;
+      font-size: .8rem;
+      line-height: 1.4;
+    }
+
+    .tabela-wrap {
+      overflow-x: auto;
+      border: 1px solid #dce2da;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
       text-align: left;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th, td {
+      padding: .8rem 1rem;
+      border-bottom: 1px solid #e5e9e3;
+      white-space: nowrap;
+    }
+
+    th {
+      color: #4c5a51;
+      background: #f8f9f6;
+      font-size: .78rem;
+      font-weight: 650;
+    }
+
+    td { font-size: .9rem; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:first-child td { font-weight: 700; }
+
+    .fonte {
+      margin-top: 1rem;
+      color: #68746b;
+      font-size: .82rem;
+      line-height: 1.6;
+    }
+
+    .fonte a { color: #245c43; }
+
+    .publicacao {
+      margin-top: 2.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #dce2da;
+      color: #68746b;
+      font-size: .8rem;
       line-height: 1.8;
     }
 
     code {
-      background: #e5e5ea;
-      padding: 2px 6px;
-      border-radius: 6px;
+      padding: 2px 5px;
+      background: #e7ece5;
+      font-size: .9em;
     }
 
     footer {
-      margin-top: 1.5rem;
-      padding-top: 1rem;
-      border-top: 1px solid #e5e5ea;
-      color: #6e6e73;
-      font-size: .85rem;
+      padding: 1rem 1.25rem 1.5rem;
+      color: #68746b;
+      text-align: center;
+      font-size: .8rem;
+    }
+
+    @media (max-width: 760px) {
+      .indicadores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 420px) {
+      header { padding-top: 1.75rem; }
+      main { padding-top: 1.25rem; }
+      .indicadores { grid-template-columns: 1fr; }
+      .indicador h3 { min-height: 0; }
     }
   </style>
 </head>
 
 <body>
-  <main class="cartao">
-    <div class="emoji">🎉</div>
+  <header>
+    <p class="sobretitulo">São Paulo · Dados públicos</p>
+    <h1>Indicadores de criminalidade</h1>
+    <p>Panorama anual do estado de São Paulo com dados publicados pela Secretaria da Segurança Pública.</p>
+  </header>
 
-    <h1>Versão 5</h1>
+  <main>
+    <div class="linha-status" aria-live="polite">
+      <span id="status" data-state="loading">Consultando a API da SSP-SP...</span>
+      <button id="retry" type="button" hidden>Consultar novamente</button>
+    </div>
 
-    <p>Site do aluno de DevOps!</p>
+    <section aria-labelledby="titulo-ano">
+      <div class="secao-titulo">
+        <h2 id="titulo-ano">Indicadores do ano <span id="ano-atual">--</span></h2>
+        <p id="comparacao">Comparação com o ano anterior</p>
+      </div>
+      <div id="indicadores" class="indicadores" aria-live="polite">
+        <article class="indicador"><h3>Homicídios</h3><span class="valor">--</span><span class="variacao">Aguardando dados</span></article>
+        <article class="indicador"><h3>Furtos</h3><span class="valor">--</span><span class="variacao">Aguardando dados</span></article>
+        <article class="indicador"><h3>Roubos</h3><span class="valor">--</span><span class="variacao">Aguardando dados</span></article>
+        <article class="indicador"><h3>Furtos e roubos de veículos</h3><span class="valor">--</span><span class="variacao">Aguardando dados</span></article>
+      </div>
+    </section>
 
-    <p><strong>O ERRO FOI CORRIGIDO E O ROBÔ PUBLICOU DE NOVO</strong></p>
+    <section aria-labelledby="titulo-historico">
+      <div class="secao-titulo">
+        <h2 id="titulo-historico">Série histórica</h2>
+        <p>Últimos anos disponíveis na fonte</p>
+      </div>
+      <div class="tabela-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Ano</th><th scope="col">Homicídios</th><th scope="col">Furtos</th><th scope="col">Roubos</th><th scope="col">Furtos e roubos de veículos</th></tr>
+          </thead>
+          <tbody id="historico"><tr><td colspan="5">Aguardando dados da SSP-SP...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
 
-    <div class="versao">
+    <p class="fonte">
+      Fonte: <a href="https://www.ssp.sp.gov.br/estatistica" target="_blank" rel="noreferrer">Secretaria da Segurança Pública do Estado de São Paulo</a>.
+      Os números representam registros policiais e podem ser revisados pela fonte. Consulta realizada em <time id="consulta">--</time>.
+    </p>
+
+    <div class="publicacao">
       🤖 <strong>Publicado pelo robô em:</strong> __DATA__<br>
       🔖 <strong>Commit:</strong> <code>__COMMIT__</code><br>
       👤 <strong>Enviado por:</strong> __AUTOR__
     </div>
-
-    <footer>
-      🎓 UNINOVE · Automação de Processos · DevOps<br>
-      Prof. Marcelino Dias da Silva
-    </footer>
   </main>
+
+  <footer>🎓 UNINOVE · Automação de Processos · DevOps<br>Prof. Marcelino Dias da Silva</footer>
+
+  <script>
+    const API_URL = "https://www.ssp.sp.gov.br/v1/OcorrenciasAnuais/RecuperaDadosArea";
+    const campos = [
+      { chave: "homicidio", titulo: "Homicídios" },
+      { chave: "furto", titulo: "Furtos" },
+      { chave: "roubo", titulo: "Roubos" },
+      { chave: "frv", titulo: "Furtos e roubos de veículos" }
+    ];
+    const numero = new Intl.NumberFormat("pt-BR");
+    const percentual = new Intl.NumberFormat("pt-BR", {
+      style: "percent",
+      maximumFractionDigits: 1,
+      signDisplay: "always"
+    });
+    const status = document.querySelector("#status");
+    const retry = document.querySelector("#retry");
+
+    function atualizarIndicadores(registros) {
+      const anos = registros
+        .filter((registro) => Number.isInteger(Number(registro.ano)))
+        .sort((a, b) => Number(b.ano) - Number(a.ano));
+
+      if (anos.length === 0) throw new Error("A API não retornou anos disponíveis.");
+
+      const atual = anos[0];
+      const anterior = anos.find((registro) => Number(registro.ano) < Number(atual.ano));
+      document.querySelector("#ano-atual").textContent = atual.ano;
+      document.querySelector("#comparacao").textContent = anterior
+        ? `Variação em relação a ${anterior.ano}`
+        : "Sem ano anterior para comparação";
+
+      document.querySelector("#indicadores").innerHTML = campos.map(({ chave, titulo }) => {
+        const valor = Number(atual[chave]);
+        const valorAnterior = anterior ? Number(anterior[chave]) : NaN;
+        const variacao = Number.isFinite(valorAnterior) && valorAnterior !== 0
+          ? `${percentual.format((valor - valorAnterior) / valorAnterior)} em relação a ${anterior.ano}`
+          : "Sem comparação disponível";
+
+        return `<article class="indicador"><h3>${titulo}</h3><span class="valor">${numero.format(valor)}</span><span class="variacao">${variacao}</span></article>`;
+      }).join("");
+
+      document.querySelector("#historico").innerHTML = anos.slice(0, 8).map((registro) => `
+        <tr>
+          <td>${registro.ano}</td>
+          ${campos.map(({ chave }) => `<td>${numero.format(Number(registro[chave]))}</td>`).join("")}
+        </tr>
+      `).join("");
+    }
+
+    async function carregarDados() {
+      status.dataset.state = "loading";
+      status.textContent = "Consultando a API da SSP-SP...";
+      retry.hidden = true;
+
+      try {
+        const resposta = await fetch(API_URL, { cache: "no-store" });
+        if (!resposta.ok) throw new Error(`A API respondeu com status ${resposta.status}.`);
+
+        const resultado = await resposta.json();
+        if (!resultado.success || !Array.isArray(resultado.data)) {
+          throw new Error("A resposta da API não contém uma série válida.");
+        }
+
+        atualizarIndicadores(resultado.data);
+        status.dataset.state = "success";
+        status.textContent = "Dados carregados diretamente da API pública da SSP-SP.";
+        document.querySelector("#consulta").textContent = new Intl.DateTimeFormat("pt-BR", {
+          dateStyle: "short",
+          timeStyle: "short"
+        }).format(new Date());
+      } catch (erro) {
+        status.dataset.state = "error";
+        status.textContent = "Não foi possível carregar os dados agora. Tente novamente.";
+        retry.hidden = false;
+        document.querySelector("#historico").innerHTML = '<tr><td colspan="5">Dados indisponíveis. Consulte novamente em alguns instantes.</td></tr>';
+      }
+    }
+
+    retry.addEventListener("click", carregarDados);
+    carregarDados();
+  </script>
 </body>
 </html>
